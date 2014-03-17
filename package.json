@@ -1,0 +1,10 @@
+{
+  "name": "NodeChat",
+  "version": "0.0.0",
+  "description": "NodeChat",
+  "main": "app.js",
+  "author": {
+    "name": "Deni",
+    "email": ""
+  }
+}
