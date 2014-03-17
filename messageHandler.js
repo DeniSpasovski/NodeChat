@@ -1,19 +1,38 @@
-﻿(function(){
+﻿/**
+  * NodeChat node.js
+  * main logic of the app
+  * author: Deni Spasovski
+  */
+(function(){
   var chatUsers = {};
   var chatRooms = {};
   var chatTypes = {};
   var globalPubSub = {};
 
+  /**
+  * removes newlines from input
+  *
+  * @param {String} data
+  * @returns {String} - text without new lines
+  */
   var cleanInput = function _cleanInput(data) {
 	  return data.toString().replace(/(\r\n|\n|\r)/gm,'');
   }
 
+  /**
+  * handles user input
+  *
+  * @param {Object} socket
+  * @param {String} data
+  * @api public
+  */
   var receiveData = function _receiveData(socket, data) {
 	  var _cleanData = cleanInput(data);
     console.log('cleandata:' + _cleanData);
     if(_cleanData.length == 0)
       return;
 
+    /* first the user has to pick user name */
     if(!socket.isChatUserAuthenticated)
       return authenticateUser(socket, _cleanData);
 
@@ -35,22 +54,34 @@
 	  }
   }
   
+  /**
+  * sends message to the passed socket
+  *
+  * @param {Object} socket
+  * @param {String} message
+  */
   var sendMessageToSocket = function _sendMessageToSocket(socket, message){
     switch(socket.chatType){
       case chatTypes.console:
-        if(socket && !socket.destroyed && socket.writable)
+        if(socket && !socket.destroyed && socket.writable) /*the socket has to be writable and not destroyed*/
           try{
             socket.write(message + '\r\n');
-          }catch (err) {
+          }catch (err){ /*try catch all the network errors*/
             console.log('socket write error!!');
           }
         break;
       case chatTypes.websocket:
-        //todo
+        /*todo*/
         break;
     }  
   }
- 
+  
+  /**
+  * checks if the typed user name is valid and authenticates user
+  *
+  * @param {Object} socket
+  * @param {String} data
+  */
   var authenticateUser = function _authenticateUser(socket, data) {
     var _user = chatUsers.createUser(data);
     if(_user == null){
@@ -65,45 +96,78 @@
   }
 
   
+  /**
+  * on log off remove user from all groups
+  *
+  * @param {Object} socket
+  * @api public
+  */
   var userLogOff = function _userLogOff(socket){
     removeUserFromAllGroups(socket.chatUser);
     chatUsers.userList[socket.chatUser.name] = null;
   }
-
+  
+  /**
+  * functions for handling special chat commands
+  */
   var chatClientCommands = {
+     /**
+     * lists available commands
+     *
+     * @param {Object} socket
+     */
     'help': function (socket) {
       sendMessageToSocket(socket, 'Available commands are:')
       for(var command in chatClientCommands){
         sendMessageToSocket(socket, ' /' + command);
       }
       sendMessageToSocket(socket, 'end of list.');
-     },  
-    'rooms': function(socket, args){
+     },
+     /**
+     * lists all available chat rooms
+     *
+     * @param {Object} socket
+     */
+    'rooms': function(socket){
+      /// <summary>lists all available chat rooms</summary>
+      /// <param name="socket" type="Object">socket where the data is received from</param>
       sendMessageToSocket(socket, 'Available chat rooms are:')
       for(var chatRoom in chatRooms.chatRoomList){
         sendMessageToSocket(socket, ' #' + chatRoom + '(' + chatRooms.chatRoomList[chatRoom].users.length + ')');
       }
       sendMessageToSocket(socket, 'end of list.');
      }, 
+     /**
+     * add user to chat room
+     *
+     * @param {Object} socket 
+     * @param {Array} args - args[0] should be the group name
+     */
      'join': function(socket, args){
-        var _chatRoomName = args[0];
-        if(chatRooms.chatRoomList[_chatRoomName]){
-          if(socket.chatUser.hasJoinedRoom()){
-            sendMessageToSocket(socket, 'You are already joined in room:'+ _chatRoomName)
-            return;  
-          }
-          if(socket.chatType == chatTypes.console)
-          {
-             //if the user joined though terminal then he can only join one room at a time
-             removeUserFromAllGroups(socket.chatUser);
-          }
-          globalPubSub.publish('userAddedToGroup', {userId: socket.chatUser.name, groupId: _chatRoomName})
-          sendMessageToSocket(socket, 'entering room: ' + _chatRoomName);
-          chatClientCommands.list(socket, _chatRoomName);
-        }else{
-          sendMessageToSocket(socket, 'Chatroom "'+ _chatRoomName +'" does not exist');
+      var _chatRoomName = args[0];
+      if(chatRooms.chatRoomList[_chatRoomName]){
+        if(socket.chatUser.hasJoinedRoom(_chatRoomName)){
+          sendMessageToSocket(socket, 'You are already joined in room:'+ _chatRoomName)
+          return;  
         }
+        if(socket.chatType == chatTypes.console)
+        {
+            /* if the user joined though terminal then he can only join one room at a time */
+            removeUserFromAllGroups(socket.chatUser);
+        }
+        globalPubSub.publish('userAddedToGroup', {userId: socket.chatUser.name, groupId: _chatRoomName})
+        sendMessageToSocket(socket, 'entering room: ' + _chatRoomName);
+        chatClientCommands.list(socket, _chatRoomName);
+      }else{
+        sendMessageToSocket(socket, 'Chat room "'+ _chatRoomName +'" does not exist');
+      }
      },
+     /**
+     * list all users in chat room
+     *
+     * @param {Object} socket 
+     * @param {Array} args - args[0] should be the group name - can be null
+     */
      'list': function(socket, args){
       var _chatRoomName;
       if(args && args.length){
@@ -126,17 +190,27 @@
         }
         sendMessageToSocket(socket, 'end of list.');
       }else{
-        sendMessageToSocket(socket, 'Chatroom "'+ _chatRoomName +'" does not exist'); 
+        sendMessageToSocket(socket, 'Chat room "'+ _chatRoomName +'" does not exist'); 
       }
      }  
   }
 
+  /**
+   * trigger userRemovedFromGroup event for each of the groups users belongs to
+   *
+   * @param {Object} user 
+   */
   var removeUserFromAllGroups = function _removeUserFromAllGroups(user){
     for(var i=0;i<user.chatRooms.length; i++){
       globalPubSub.publish('userRemovedFromGroup', {userId: user.name, groupId: user.chatRooms[i]});
     }
   }
 
+  /**
+   * event that is triggered when user is added to group
+   *
+   * @param {Object} data - must contain groupId and userId
+   */
   var userAddedToGroup = function _userAddedToGroup(data){
     if(chatRooms.chatRoomList[data.groupId]){
       broadcastMessage(chatRooms.chatRoomList[data.groupId].users, ' *new user joined chat: ' + data.userId);
@@ -147,6 +221,11 @@
     }
   }
 
+   /**
+   * event that is triggered when user is removed to group
+   *
+   * @param {Object} data - must contain groupId and userId
+   */
   var userRemovedFromGroup = function _userRemovedFromGroup(data){
     if(chatRooms.chatRoomList[data.groupId]){
       broadcastMessage(chatRooms.chatRoomList[data.groupId].users, ' *user has left chat: ' + data.userId)
@@ -157,6 +236,12 @@
     }
   }
 
+  /**
+   * called when message sent by users starts with / - checks if the command exist
+   *
+   * @param {Object} socket
+   * @param {Object} message
+   */
   var executeCommand = function _executeCommand(socket, message){
     var _commandArgs = message.split(' ');
     if(typeof chatClientCommands[_commandArgs[0]] == 'function'){
@@ -166,6 +251,11 @@
     }
   }
 
+   /**
+   * sends message to each socket stored in user object
+   *
+   * @param {Array} receiversList
+   */
   var broadcastMessage = function _sendMessage(receiversList, message){
     for(var i=0; i<receiversList.length;i++){
       if(chatUsers.userList[receiversList[i]] && chatUsers.userList[receiversList[i]].socket)
@@ -173,6 +263,12 @@
     }
   }
 
+  /**
+   * Connects chatRoom and chatUser objects to the message handler
+   *
+   * @param {Object} params
+   * @api public
+   */
   var initObject = function initObject(params){
     chatRooms = params.chatRooms; 
     chatUsers = params.chatUsers; 
@@ -181,7 +277,10 @@
     subsribeListeneres();
   }
 
-  var subsribeListeneres = function subsribeListeneres(params){
+  /**
+   * Attach event listeners to the 'remove users' and 'add users' events
+   */
+  var subsribeListeneres = function subsribeListeneres(){
     globalPubSub.subscribe('userRemovedFromGroup', userRemovedFromGroup);
     globalPubSub.subscribe('userAddedToGroup', userAddedToGroup);
   }

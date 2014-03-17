@@ -1,4 +1,13 @@
-﻿(function(){
+﻿/**
+  * NodeChat node.js
+  * author: Deni Spasovski
+  */
+(function(){
+  /**
+  * definition of chat room object
+  *
+  * @param {String} name
+  */
   var chatRoom = function _chatRoom(name) {
     var _this = Object.create({});
     _this.name = name;
@@ -16,6 +25,13 @@
   };
 
   var chatRoomList = {};
+
+  /**
+  * factory pattern object creator
+  *
+  * @param {String} name
+  * @api public
+  */
   var createChatRoom = function _createChatRoom(name) {
     if(chatRoomList[name] != null)
       return null; //chat room exist
@@ -23,6 +39,7 @@
     chatRoomList[name] = _newChatRoom;
     return _newChatRoom;
   };
+
   module.exports.createChatRoom = createChatRoom;
   module.exports.chatRoomList = chatRoomList;
 })();
