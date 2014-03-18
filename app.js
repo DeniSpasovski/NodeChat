@@ -50,6 +50,6 @@ function ObjectDebugger(obj){
 
 /* attach the listener to the new Socket event */
 var server = net.createServer(newSocket);
- 
+var port = process.env.port || 8888;
 /* app is hosted on port 8888 */
-server.listen(8888);
+server.listen(port);
