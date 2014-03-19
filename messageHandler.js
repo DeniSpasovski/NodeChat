@@ -1,6 +1,6 @@
 ﻿/**
   * NodeChat node.js
-  * main logic of the app
+  * main code of the chat app
   * author: Deni Spasovski
   */
 (function(){
@@ -28,7 +28,7 @@
   */
   var receiveData = function _receiveData(socket, data) {
 	  var _cleanData = cleanInput(data);
-    console.log('cleandata:' + _cleanData);
+    console.log('received data:' + _cleanData);
     if(_cleanData.length == 0)
       return;
 
@@ -71,7 +71,7 @@
           }
         break;
       case chatTypes.websocket:
-        /*todo*/
+        /*to do*/
         break;
     }  
   }
@@ -129,8 +129,6 @@
      * @param {Object} socket
      */
     'rooms': function(socket){
-      /// <summary>lists all available chat rooms</summary>
-      /// <param name="socket" type="Object">socket where the data is received from</param>
       sendMessageToSocket(socket, 'Available chat rooms are:')
       for(var chatRoom in chatRooms.chatRoomList){
         sendMessageToSocket(socket, ' #' + chatRoom + '(' + chatRooms.chatRoomList[chatRoom].users.length + ')');
@@ -161,6 +159,44 @@
       }else{
         sendMessageToSocket(socket, 'Chat room "'+ _chatRoomName +'" does not exist');
       }
+     },
+     /**
+     * leave chat room
+     *
+     * @param {Object} socket 
+     * @param {Array} args - args[0] should be the group name - is null when called from console
+     */
+     'leave': function(socket, args){
+       throw err;
+      var _chatRoomName;
+      if(socket.chatType != chatTypes.console){
+        if(args && args.length)
+          _chatRoomName = args;
+        if (_chatRoomName instanceof Array)
+          _chatRoomName = _chatRoomName[0];
+
+        if(!socket.chatUser.hasJoinedRoom(_chatRoomName)){
+          sendMessageToSocket(socket, 'User does not belong to that chat room'); 
+          return;
+        }
+      }else{
+        if(socket.chatUser.chatRooms.length){
+          _chatRoomName = socket.chatUser.chatRooms[0];
+        }else{
+          sendMessageToSocket(socket, 'User does not belong to chat room'); 
+          return;
+        }
+      }   
+      globalPubSub.publish('userRemovedFromGroup', {userId: socket.chatUser.name, groupId: _chatRoomName});
+     },
+     /**
+     * disconnect user
+     *
+     * @param {Object} socket 
+     */
+     'quit': function(socket){
+      removeUserFromAllGroups(socket.chatUser);
+      socket.end('see you!');
      },
      /**
      * list all users in chat room
