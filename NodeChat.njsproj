@@ -34,6 +34,7 @@
     <Compile Include="chatUser.js" />
     <Compile Include="messageHandler.js" />
     <Compile Include="pubSub.js" />
+    <Compile Include="stringCompareHelpers.js" />
     <Content Include=".gitattributes" />
     <Content Include=".gitignore" />
     <Content Include="package.json" />

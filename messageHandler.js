@@ -7,6 +7,7 @@
   var chatUsers = {};
   var chatRooms = {};
   var chatTypes = {};
+  var stringCompareHelpers = {};
   var globalPubSub = {};
 
   /**
@@ -31,7 +32,7 @@
     if(_cleanData.length == 0)
       return;
     
-    console.log('$$' + socket.remoteAddress + ' : ' + _cleanData);
+    console.log('$$ ' + (new Date()).toUTCString() + ' :'+ socket.remoteAddress + ': ' + _cleanData);
     /* first the user has to pick user name */
     if(!socket.isChatUserAuthenticated)
       return authenticateUser(socket, _cleanData);
@@ -83,8 +84,7 @@
   * @param {String} data
   */
   var authenticateUser = function _authenticateUser(socket, data) {
-    var nameRegex = /^[a-zA-Z0-9_]*$/;
-    if (!nameRegex.test(data)){
+    if (!stringCompareHelpers.isAlphanumeric(data)){
       sendMessageToSocket(socket, 'Name can contain only alphanumeric characters!');
       sendMessageToSocket(socket, 'Login Name?');
       return;
@@ -333,8 +333,9 @@
   var initObject = function initObject(params){
     chatRooms = params.chatRooms; 
     chatUsers = params.chatUsers; 
-    chatTypes = params.chatTypes; 
+    chatTypes = params.chatTypes;     
     globalPubSub = params.globalPubSub;
+    stringCompareHelpers = params.stringCompareHelpers;
     subsribeListeneres();
   }
 

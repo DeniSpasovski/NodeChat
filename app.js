@@ -7,10 +7,11 @@ var globalPubSub = require ('./pubSub.js');
 var chatRooms = require ('./chatRoom.js');
 var chatUsers = require ('./chatUser.js');
 var messageHandler = require ('./messageHandler.js');
+var stringCompareHelpers = require ('./stringCompareHelpers.js');
 var chatTypes = {'console': 'console', 'websocket': 'websocket'};
 chatRooms.createChatRoom('main');
 chatRooms.createChatRoom('second');
-messageHandler.initObject({chatUsers:chatUsers, chatRooms:chatRooms, chatTypes: chatTypes, globalPubSub: globalPubSub});
+messageHandler.initObject({chatUsers:chatUsers, chatRooms:chatRooms, chatTypes: chatTypes, globalPubSub: globalPubSub, stringCompareHelpers: stringCompareHelpers});
 
 /**
   * server listener function for new connections
@@ -19,14 +20,21 @@ messageHandler.initObject({chatUsers:chatUsers, chatRooms:chatRooms, chatTypes: 
   * @param {Object} socket
   */
 function newSocket(socket) {
+  socket.chatMessageBuffer = '';
 	socket.write('Welcome to D Node Chat server!\r\n');
   socket.write('Login Name?\r\n');
   socket.chatType = chatTypes.console;
 	socket.on('data', function(data) {
-    if(socket._dirtyChatData)/*first message received from telnet client was nonsense*/
-		  messageHandler.receiveData(socket, data);
-    else
+    if(!socket._dirtyChatData){/*first message received from some telnet clients is nonsense*/
       socket._dirtyChatData = true;
+      if(!stringCompareHelpers.isAlphanumeric(data))
+        return;
+    }
+    socket.chatMessageBuffer += data;/*fix for windows telnet client it transmits every character as you type*/
+    if(stringCompareHelpers.containsNewLine(data)){
+      messageHandler.receiveData(socket, socket.chatMessageBuffer);
+      socket.chatMessageBuffer = '';
+    }
 	})
 	socket.on('end', function() {
 		messageHandler.userLogOff(socket);
