@@ -27,11 +27,11 @@
   * @api public
   */
   var receiveData = function _receiveData(socket, data) {
-	  var _cleanData = cleanInput(data);
-    console.log('received data:' + _cleanData);
+    var _cleanData = cleanInput(data);
     if(_cleanData.length == 0)
       return;
-
+    
+    console.log('$$' + socket.remoteAddress + ' : ' + _cleanData);
     /* first the user has to pick user name */
     if(!socket.isChatUserAuthenticated)
       return authenticateUser(socket, _cleanData);
