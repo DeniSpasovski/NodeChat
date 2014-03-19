@@ -45,8 +45,17 @@ function ObjectDebugger(obj){
   for(var prop in obj){
     console.log('prop: ' + prop + "  value:" + obj[prop]);  
   } 
-  console.log('-objectend-'); 
+  console.log('-object end-'); 
 }
+
+/**
+  * global error handler
+  */
+process.on('uncaughtException', function(err) {
+    console.log('-global error-');
+    console.log(err);
+    console.log('-global error end-');
+});
 
 /* attach the listener to the new Socket event */
 var server = net.createServer(newSocket);
