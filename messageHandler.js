@@ -83,15 +83,22 @@
   * @param {String} data
   */
   var authenticateUser = function _authenticateUser(socket, data) {
+    var nameRegex = /^[a-zA-Z0-9_]*$/;
+    if (!nameRegex.test(data)){
+      sendMessageToSocket(socket, 'Name can contain only alphanumeric characters!');
+      sendMessageToSocket(socket, 'Login Name?');
+      return;
+    }
+
     var _user = chatUsers.createUser(data);
     if(_user == null){
-      sendMessageToSocket(socket, 'Sorry, name taken.')
-      sendMessageToSocket(socket, 'Login Name?')
+      sendMessageToSocket(socket, 'Sorry, name taken.');
+      sendMessageToSocket(socket, 'Login Name?');
     } else {
       socket.isChatUserAuthenticated = true;
       socket.chatUser = _user;
       _user.socket = socket;
-      sendMessageToSocket(socket, 'Welcome ' + _user.name + '!')
+      sendMessageToSocket(socket, 'Welcome ' + _user.name + '!');
     }
   }
 
@@ -103,8 +110,10 @@
   * @api public
   */
   var userLogOff = function _userLogOff(socket){
-    removeUserFromAllGroups(socket.chatUser);
-    chatUsers.userList[socket.chatUser.name] = null;
+    if(socket.chatUser){
+      removeUserFromAllGroups(socket.chatUser.name);
+      chatUsers.userList[socket.chatUser.name] = null;
+    }
   }
   
   /**
@@ -151,7 +160,7 @@
         if(socket.chatType == chatTypes.console)
         {
             /* if the user joined though terminal then he can only join one room at a time */
-            removeUserFromAllGroups(socket.chatUser);
+            removeUserFromAllGroups(socket.chatUser.name);
         }
         globalPubSub.publish('userAddedToGroup', {userId: socket.chatUser.name, groupId: _chatRoomName})
         sendMessageToSocket(socket, 'entering room: ' + _chatRoomName);
@@ -195,7 +204,7 @@
      * @param {Object} socket 
      */
      'quit': function(socket){
-      removeUserFromAllGroups(socket.chatUser);
+      removeUserFromAllGroups(socket.chatUser.name);
       socket.end('see you!');
      },
      /**
@@ -228,15 +237,31 @@
       }else{
         sendMessageToSocket(socket, 'Chat room "'+ _chatRoomName +'" does not exist'); 
       }
-     }  
+     },
+     /**
+     * sends private message to user
+     *
+     * @param {Object} socket 
+     */
+     'pm': function(socket, args){
+       if(!chatUsers.userList[args[0]]){
+         sendMessageToSocket(socket, 'User:' + args[0] + ' does not exist!');
+         return;
+       }
+       broadcastMessage([args[0]], '*pm from '+ socket.chatUser.name +' : ' + args.slice(1).join(' '));
+     }
   }
 
   /**
    * trigger userRemovedFromGroup event for each of the groups users belongs to
    *
-   * @param {Object} user 
+   * @param {String} userName 
    */
-  var removeUserFromAllGroups = function _removeUserFromAllGroups(user){
+  var removeUserFromAllGroups = function _removeUserFromAllGroups(userName){
+    var user = chatUsers.userList[userName];
+    if(!user){
+      return;
+    }
     for(var i=0;i<user.chatRooms.length; i++){
       globalPubSub.publish('userRemovedFromGroup', {userId: user.name, groupId: user.chatRooms[i]});
     }
