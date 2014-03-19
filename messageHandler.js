@@ -176,7 +176,6 @@
      * @param {Array} args - args[0] should be the group name - is null when called from console
      */
      'leave': function(socket, args){
-       throw err;
       var _chatRoomName;
       if(socket.chatType != chatTypes.console){
         if(args && args.length)
